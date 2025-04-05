@@ -1,5 +1,7 @@
 import datetime
 
+import Optimization
+
 
 class GTU:
     def __init__(self, id, specs, average_load_factor=None):
@@ -197,6 +199,24 @@ class GTESModel:
             f"Суммарная выработка электроэнергии: {self.total_energy_generated:.2f} МВт*ч")
 
 
+# _________________________________________________________________________________________
+# добавил для связи между файлами. Оставил минимум, который мне необходим. При желании нужно изменить
+class GridModel:
+    def __init__(self):
+        self.load_factors = [0.6, 0.7, 0.5, 0.8, 0.05,
+                             0.75, 0.8, 0.85, 0.0]  # дефолтный массив
+
+    def set_load(self, new_load_factors):
+        self.load_factors = new_load_factors
+
+    def get_load(self):
+        return self.load_factors
+
+
+grid_model = GridModel()
+# _________________________________________________________________________________________
+
+
 # Тут само моделирование с нашими данным
 gtu_specs = {
     'мощность': 16,
@@ -209,7 +229,7 @@ gtu_specs = {
 }
 
 # Тут моделирование с резервами, ГТУ 4 горячий, ГТУ 8 холодный
-load_factors = [0.6, 0.7, 0.5, 0.8, 0.05, 0.75, 0.8, 0.85, 0.0]
+load_factors = grid_model.get_load()
 
 model = GTESModel(gtu_specs, load_factors)
 
