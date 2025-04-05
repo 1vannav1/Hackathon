@@ -1,7 +1,5 @@
 import datetime
 
-import Optimization
-
 
 class GTU:
     def __init__(self, id, specs, average_load_factor=None):
@@ -202,9 +200,10 @@ class GTESModel:
 # _________________________________________________________________________________________
 # добавил для связи между файлами. Оставил минимум, который мне необходим. При желании нужно изменить
 class GridModel:
+    # Установка коэффициента загрузки
     def __init__(self):
-        self.load_factors = [0.6, 0.7, 0.5, 0.8, 0.05,
-                             0.75, 0.8, 0.85, 0.0]  # дефолтный массив
+        self.load_factors = [0.6, 0.7, 0.5, 0.8, 0.05, 0.75, 0.8, 0.85, 0.0]
+        self.total_salary_cost = 0
 
     def set_load(self, new_load_factors):
         self.load_factors = new_load_factors
@@ -212,8 +211,16 @@ class GridModel:
     def get_load(self):
         return self.load_factors
 
+    # получение результирующей стоимости. Пока оставим так но нужно переписать
+    def set_salary_cost(self, cost):
+        self.total_salary_cost = cost
+
+    def get_salary_cost(self):
+        return self.total_salary_cost
+
 
 grid_model = GridModel()
+# Необходимо методы перенести в класс GTESModel
 # _________________________________________________________________________________________
 
 
