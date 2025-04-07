@@ -25,6 +25,8 @@ class GTU:
 
 
 class GTESModel:
+    prise_per_MW = 5.6
+
     def __init__(self, gtu_specs, load_factors):
         self.gtu_specs = gtu_specs  # Сохраняет значения параметров ГТУ в системе ГТЭС
         self.gtus = [GTU(i, gtu_specs, load_factors[i]) for i in range(
@@ -73,7 +75,7 @@ class GTESModel:
         # Перевод ГТУ на ТО или КР
         if gtu.run_hours >= self.gtu_specs['ТО_периодичность'] and gtu.status == "работает":
             # Визуализация вывода в ТО
-            print(f"GTU {gtu.id} уходит на ТО в {current_time}")
+            # print(f"GTU {gtu.id} уходит на ТО в {current_time}")
             gtu.status = "ТО"
             # Время ТО принял 3 дня, меняется легко
             to_duration = datetime.timedelta(hours=3*24)
@@ -107,7 +109,7 @@ class GTESModel:
     def update_status(self, gtu, current_time):
         # Проверка времени ТО и КР, возвращение в эксплуатацию
         if gtu.status in ["ТО", "КР"] and current_time >= gtu.end_maintenance:
-            print(f"GTU {gtu.id} возвращается в строй в {current_time}")
+            # print(f"GTU {gtu.id} возвращается в строй в {current_time}")
             gtu.status = "работает"
             gtu.next_to = None
             gtu.next_kr = None
@@ -148,21 +150,19 @@ class GTESModel:
             hot_reserve_used = False  # Ограничение для разового использования горячего резерва
             for gtu in need_maintenance:
                 if not hot_reserve_used and self.hot_reserve and self.hot_reserve.status == "горячий_резерв":
-                    print(
-                        f"  Замена GTU {gtu.id} на GTU {self.hot_reserve.id} (горячий резерв)")
+                    # print(f"  Замена GTU {gtu.id} на GTU {self.hot_reserve.id} (горячий резерв)")
                     self.hot_reserve.status = "работает"
                     hot_reserve_used = True  # На этом шаге больше нельзя использовать резерв после ввода ТО
                     self.assign_hot_reserve()  # Поиск иных резервов
 
                 # Если горячий использован, вводим холодный
                 elif self.cold_reserve and self.cold_reserve.status == 'холодный_резерв':
-                    print(
-                        f"  Замена GTU {gtu.id} на GTU {self.cold_reserve.id} (холодный резерв)")
+                    # print(f"  Замена GTU {gtu.id} на GTU {self.cold_reserve.id} (холодный резерв)")
                     self.cold_reserve.status = "работает"
                     self.assign_cold_reserve()
-                else:
-                    # Если все резервы кончились
-                    print(f"  Нет доступных резервов для замены GTU {gtu.id}")
+                # else:
+                #     # Если все резервы кончились
+                #     print(f"  Нет доступных резервов для замены GTU {gtu.id}")
 
             # Обновление статусов ГТУ
             for gtu in self.gtus:
@@ -178,15 +178,14 @@ class GTESModel:
         # Вывод итоговой информации по каждой ГТУ
         print("\nИтоговая информация:")
 
-        for gtu in self.gtus:
-            print(f"  GTU {gtu.id}:")
-            print(
-                f"   Выработка: {gtu.specs['мощность'] * gtu.average_load_factor * gtu.total_run_hours:.2f} МВт*ч")
-            print(f"   Общее время работы: {gtu.total_run_hours:.2f}")
-            print(f"   ТО: {gtu.to_counter}")
-            print(f"   КР: {gtu.kr_counter}")
-            print(f"   Простой: {gtu.downtime_hours:.2f} часов")
-            print(f"   Расходы на ТО и КР: {gtu.maintenance_cost:.2f} руб.")
+        # for gtu in self.gtus:
+        #     print(f"  GTU {gtu.id}:")
+        #     print(f"   Выработка: {gtu.specs['мощность'] * gtu.average_load_factor * gtu.total_run_hours:.2f} МВт*ч")
+        #     print(f"   Общее время работы: {gtu.total_run_hours:.2f}")
+        #     print(f"   ТО: {gtu.to_counter}")
+        #     print(f"   КР: {gtu.kr_counter}")
+        #     print(f"   Простой: {gtu.downtime_hours:.2f} часов")
+        #     print(f"   Расходы на ТО и КР: {gtu.maintenance_cost:.2f} руб.")
 
         # Итоговые расходы
         print(
@@ -195,10 +194,16 @@ class GTESModel:
             f"Итоговые расходы на ТО и КР: {self.total_maintenance_cost:.2f} руб.")
         print(
             f"Суммарная выработка электроэнергии: {self.total_energy_generated:.2f} МВт*ч")
-
+        cost_electricity = self.total_energy_generated * self.prise_per_MW
+        print(
+            f"Суммарная стоймость электроэнергии: {cost_electricity:.2f} руб")
+        res = cost_electricity + self.total_maintenance_cost + self.total_salary_cost
+        print(f"{res:.2f}")
 
 # _________________________________________________________________________________________
 # добавил для связи между файлами. Оставил минимум, который мне необходим. При желании нужно изменить
+
+
 class GridModel:
     # Установка коэффициента загрузки
     def __init__(self):
@@ -220,7 +225,6 @@ class GridModel:
 
 
 grid_model = GridModel()
-# Необходимо методы перенести в класс GTESModel
 # _________________________________________________________________________________________
 
 
