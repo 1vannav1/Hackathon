@@ -205,18 +205,23 @@ class GTESModel:
 
 
 class GridModel:
-    # Установка коэффициента загрузки
+    """класс для запрос - ответа основного цикла расчета стоимости"""
+
+    # Установка коэффициента загрузки по дефолту
     def __init__(self):
         self.load_factors = [0.6, 0.7, 0.5, 0.8, 0.05, 0.75, 0.8, 0.85, 0.0]
         self.total_salary_cost = 0
 
-    def set_load(self, new_load_factors):
+    # Метод по установке нагрузки
+    def set_load_from_NGM(self, new_load_factors):
         self.load_factors = new_load_factors
 
-    def get_load(self):
+    # Метод - запрос загрузки у оптимизации
+    def get_load_from_optz(self):
         return self.load_factors
 
     # получение результирующей стоимости. Пока оставим так но нужно переписать
+
     def set_salary_cost(self, cost):
         self.total_salary_cost = cost
 
@@ -240,10 +245,11 @@ gtu_specs = {
 }
 
 # Тут моделирование с резервами, ГТУ 4 горячий, ГТУ 8 холодный
-load_factors = grid_model.get_load()
+load_factors = grid_model.set_load_from_NGM()
 
 model = GTESModel(gtu_specs, load_factors)
 
 start_date = datetime.datetime(2024, 6, 1)
 end_date = datetime.datetime(2025, 6, 1)
+
 model.simulate(start_date, end_date)
