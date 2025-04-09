@@ -176,18 +176,18 @@ class GTESModel:
             current_time += datetime.timedelta(hours=1)
 
         # Вывод итоговой информации по каждой ГТУ
-        print("\nИтоговая информация:")
+        # print("\nИтоговая информация:")
 
-        # Итоговые расходы
-        print(
-            f"\nИтоговые расходы на зарплату: {self.total_salary_cost:.2f} руб.")
-        print(
-            f"Итоговые расходы на ТО и КР: {self.total_maintenance_cost:.2f} руб.")
-        print(
-            f"Суммарная выработка электроэнергии: {self.total_energy_generated:.2f} МВт*ч")
+        # # Итоговые расходы
+        # print(
+        #     f"\nИтоговые расходы на зарплату: {self.total_salary_cost:.2f} руб.")
+        # print(
+        #     f"Итоговые расходы на ТО и КР: {self.total_maintenance_cost:.2f} руб.")
+        # print(
+        #     f"Суммарная выработка электроэнергии: {self.total_energy_generated:.2f} МВт*ч")
         cost_electricity = self.total_energy_generated * self.prise_per_MW
-        print(
-            f"Суммарная стоймость электроэнергии: {cost_electricity:.2f} руб")
+        # print(
+        #     f"Суммарная стоймость электроэнергии: {cost_electricity:.2f} руб")
 
         res = cost_electricity + self.total_maintenance_cost + self.total_salary_cost
         return res
