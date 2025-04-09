@@ -1,9 +1,10 @@
+import datetime
 import functools
 import random
 
 from matplotlib import pyplot as plt
 
-from NetworkGridModel import grid_model
+from NetworkGridModel import model
 
 
 # константы генетического алгоритма
@@ -14,16 +15,15 @@ MAX_GENERATIONS = 50    # максимальное количество поко
 ONE_MAX_LENGTH = 9      # количество генов
 
 
-def log_calls(func):
-    """Служебная функция для анализа работы других функций"""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        print(
-            f"[ИМЯ ФУНКЦИИ] {func.__name__} [АРГУМЕНТ] = {args} [АРГУМЕНТЫ имен.] = {kwargs}")
-        result = func(*args, **kwargs)
-        print(f"[ВОЗРВАЩАЕТ] {func.__name__} -> {result}")
-        return result
-    return wrapper
+gtu_specs = {
+    'мощность': 16,
+    'кол-во': 9,
+    'ТО_периодичность': 1500,
+    'ТО_стоимость': 15000000,
+    'КР_периодичность': 10000,
+    'КР_стоимость': 75000000,
+    'время_запуска_из_холодного_резерва': 2
+}
 
 
 class FitnessMax():
@@ -38,8 +38,13 @@ class Individual(list):
 
 
 def oneMaxFitness(individual):
-    grid_model.set_load_from_NGM(individual)
-    fitness = grid_model.get_salary_cost()
+    model.__init__(gtu_specs, individual)
+
+    start_date = datetime.datetime(2024, 6, 1)
+    end_date = datetime.datetime(2025, 6, 1)
+
+    fitness = model.simulate(start_date, end_date)
+
     return (fitness),
 
 

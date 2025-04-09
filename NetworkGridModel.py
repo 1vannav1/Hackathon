@@ -178,15 +178,6 @@ class GTESModel:
         # Вывод итоговой информации по каждой ГТУ
         print("\nИтоговая информация:")
 
-        # for gtu in self.gtus:
-        #     print(f"  GTU {gtu.id}:")
-        #     print(f"   Выработка: {gtu.specs['мощность'] * gtu.average_load_factor * gtu.total_run_hours:.2f} МВт*ч")
-        #     print(f"   Общее время работы: {gtu.total_run_hours:.2f}")
-        #     print(f"   ТО: {gtu.to_counter}")
-        #     print(f"   КР: {gtu.kr_counter}")
-        #     print(f"   Простой: {gtu.downtime_hours:.2f} часов")
-        #     print(f"   Расходы на ТО и КР: {gtu.maintenance_cost:.2f} руб.")
-
         # Итоговые расходы
         print(
             f"\nИтоговые расходы на зарплату: {self.total_salary_cost:.2f} руб.")
@@ -197,9 +188,9 @@ class GTESModel:
         cost_electricity = self.total_energy_generated * self.prise_per_MW
         print(
             f"Суммарная стоймость электроэнергии: {cost_electricity:.2f} руб")
-        res = cost_electricity + self.total_maintenance_cost + self.total_salary_cost
-        print(f"{res:.2f}")
 
+        res = cost_electricity + self.total_maintenance_cost + self.total_salary_cost
+        return res
 # _________________________________________________________________________________________
 # добавил для связи между файлами. Оставил минимум, который мне необходим. При желании нужно изменить
 
@@ -207,10 +198,10 @@ class GTESModel:
 class GridModel:
     """класс для запрос - ответа основного цикла расчета стоимости"""
 
-    # Установка коэффициента загрузки по дефолту
-    def __init__(self):
-        self.load_factors = [0.6, 0.7, 0.5, 0.8, 0.05, 0.75, 0.8, 0.85, 0.0]
-        self.total_salary_cost = 0
+    # # Установка коэффициента загрузки по дефолту
+    # def __init__(self):
+    #     self.load_factors = [0.6, 0.7, 0.5, 0.8, 0.05, 0.75, 0.8, 0.85, 0.0]
+    #     self.total_salary_cost = 0
 
     # Метод по установке нагрузки
     def set_load_from_NGM(self, new_load_factors):
@@ -245,11 +236,14 @@ gtu_specs = {
 }
 
 # Тут моделирование с резервами, ГТУ 4 горячий, ГТУ 8 холодный
-load_factors = grid_model.set_load_from_NGM()
+
+
+load_factors = [0.72, 0.91, 0.23, 0.31, 0.65, 0.42, 0.31, 0.99, 0.42]
+
 
 model = GTESModel(gtu_specs, load_factors)
 
-start_date = datetime.datetime(2024, 6, 1)
-end_date = datetime.datetime(2025, 6, 1)
+# start_date = datetime.datetime(2024, 6, 1)
+# end_date = datetime.datetime(2025, 6, 1)
 
-model.simulate(start_date, end_date)
+# model.simulate(start_date, end_date)
