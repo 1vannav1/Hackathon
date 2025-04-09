@@ -82,7 +82,7 @@ def selTournament(population, p_len):
             i1, i2, i3 = random.randint(
                 0, p_len-1), random.randint(0, p_len-1), random.randint(0, p_len-1)
 
-        offspring.append(max([population[i1], population[i2],
+        offspring.append(min([population[i1], population[i2],
                          population[i3]], key=lambda ind: ind.fitness.values[0]))
 
     return offspring
@@ -120,14 +120,14 @@ while generationCounter < MAX_GENERATIONS:
 
     fitnessValues = [ind.fitness.values[0] for ind in population]
 
-    maxFitness = max(fitnessValues)
+    maxFitness = min(fitnessValues)
     meanFitness = sum(fitnessValues) / len(population)
     maxFitnessValues.append(maxFitness)
     meanFitnessValues.append(meanFitness)
     print(
         f"Поколение {generationCounter}: Макс приспособ. = {maxFitness}, Средняя приспособ.= {meanFitness}")
 
-    best_index = fitnessValues.index(max(fitnessValues))
+    best_index = fitnessValues.index(min(fitnessValues))
     print("Лучший индивидуум = ", *population[best_index], "\n")
 
 plt.plot(maxFitnessValues, color='red')
