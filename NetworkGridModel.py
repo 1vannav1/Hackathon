@@ -1,249 +1,206 @@
 import datetime
+import math
 
+class PowerConsumer:
+    def __init__(self, name, installed_power_electric, distance, load_factor_summer, load_factor_winter, voltage = 10):
+        self.name = name
+        self.installed_power_electric = installed_power_electric
+        self.distance = distance
+        self.load_factor_summer = load_factor_summer / 100 
+        self.load_factor_winter = load_factor_winter / 100
+        self.power_factor = 0.97  
+        self.heating_load = 0  
+        self.voltage = voltage
+        self.total_power_consumption = 0 
 
-class GTU:
-    def __init__(self, id, specs, average_load_factor=None):
-        # Идентификатор для обращения к ГТУ (задача загрузки в том числе)
-        self.id = id
-        self.specs = specs  # Задает словарь характеристик, как в ТЗ
-        self.average_load_factor = average_load_factor  # Как раз коэф загрузки от 0 до 1
-        self.total_run_hours = 0  # Общее время работы ГТУ
-        # Время с последнего ТО. После ТО оно сбрасывается и также увеличивает число ТО на 1
-        self.run_hours = 0
-        self.hours_since_kr = 0  # Время с последнего КР, аналогично ТО
-        self.status = "работает"  # Начальное положение всех ГТУ не в резерве для слежения
-        self.next_to = None  # Дата следующегго ТО, задается по моточасам в симуляции
-        self.next_kr = None  # Аналогично КР
-        self.end_maintenance = None  # Окончание обслуживания
-        self.to_counter = 0    # Счетчик ТО
-        self.kr_counter = 0    # Счетчик КР
-        self.downtime_hours = 0  # Общее время простоя в часах
-        self.maintenance_cost = 0.0  # Расходы на ТО и КР ГТУ
+    def calculate_power_demand(self, date):
 
-    def __repr__(self):  # Функция для выдачи информации об конкретном ГТУ
-        return f"GTU(ID: {self.id}, Status: {self.status}, Total Run Hours: {self.total_run_hours}, Run Hours: {self.run_hours}, Load: {self.average_load_factor}, TO: {self.to_counter}, KR: {self.kr_counter}, Downtime: {self.downtime_hours}, Maintenance Cost: {self.maintenance_cost})"
-
-
-class GTESModel:
-    prise_per_MW = 5.6
-
-    def __init__(self, gtu_specs, load_factors):
-        self.gtu_specs = gtu_specs  # Сохраняет значения параметров ГТУ в системе ГТЭС
-        self.gtus = [GTU(i, gtu_specs, load_factors[i]) for i in range(
-            # Создает в модели отдельные объекты ГТУ с уникальными ID
-            gtu_specs['кол-во'])]
-        self.hot_reserve = None  # Горячий резерв
-        self.cold_reserve = None  # Холодный резерв
-        self.total_energy_generated = 0.0
-        self.start_date = None  # Начало моделирования
-        self.end_date = None
-
-        # Эксплуатационные расходы
-        self.personnel_salary = 150000 * 20  # Зарплата 20 человек в месяц
-        self.total_salary_cost = 0.0  # Общие расходы на зарплату
-        self.total_maintenance_cost = 0.0  # Общие расходы на ТО и КР
-
-        # Связка со след. функцией, принимает определенный ГТУ как горячий резерв
-        self.assign_hot_reserve()
-        self.assign_cold_reserve()  # Аналогично с холодным
-
-    def assign_hot_reserve(self):
-        # Выбор горячего резерва. Я выбрал условие по загрузке выше 0 но ниже 0,15
-        eligible_gtus = [gtu for gtu in self.gtus if gtu.status == "работает" and 0 <
-                         # Выбор ГТУ в резерв, оно работает и слабо загружено
-                         gtu.average_load_factor < 0.15]
-        if eligible_gtus:
-            # выбираем минимально отработавший резерв
-            self.hot_reserve = min(
-                eligible_gtus, key=lambda x: x.total_run_hours)
-            self.hot_reserve.status = "горячий_резерв"
+        hours_in_day = 1 
+        if 6 <= date.month <= 9:
+            power_demand = self.installed_power_electric * self.load_factor_summer * 1000 
         else:
-            self.hot_reserve = None
+            power_demand = self.installed_power_electric * self.load_factor_winter * 1000 
+        return power_demand
 
-    def assign_cold_reserve(self):
-        # Тут холодный резерв. Все аналогично, но загрузка в простое 0
-        eligible_gtus = [gtu for gtu in self.gtus if gtu.status ==
-                         "работает" and gtu.average_load_factor == 0]
-        if eligible_gtus:
-            self.cold_reserve = min(
-                eligible_gtus, key=lambda x: x.total_run_hours)
-            self.cold_reserve.status = "холодный_резерв"
-        else:
-            self.cold_reserve = None
+    def __repr__(self):
+        return f"{self.name} (Установленная мощность: {self.installed_power_electric} МВт, Расстояние: {self.distance} км, Потреблено: {self.total_power_consumption:.2f} МВт*ч)" #Общее потребление
 
-    def perform_maintenance(self, gtu, current_time):
-        # Перевод ГТУ на ТО или КР
-        if gtu.run_hours >= self.gtu_specs['ТО_периодичность'] and gtu.status == "работает":
-            # Визуализация вывода в ТО
-            # print(f"GTU {gtu.id} уходит на ТО в {current_time}")
-            gtu.status = "ТО"
-            # Время ТО принял 3 дня, меняется легко
-            to_duration = datetime.timedelta(hours=3*24)
-            gtu.end_maintenance = current_time + to_duration  # Время завершения ТО
-            gtu.next_to = current_time + to_duration
+class ProductionFacility(PowerConsumer):
 
-            gtu.downtime_hours += to_duration.total_seconds() / 3600  # Время простоя в часах
-            gtu.to_counter += 1  # Счетчик ТО
-            gtu.run_hours = 0  # Сброс времени до следующего ТО
-            # Стоимость ТО для GTU, в расходы
-            gtu.maintenance_cost += self.gtu_specs['ТО_стоимость']
-            # Общая стоимость эксплуатации
-            self.total_maintenance_cost += self.gtu_specs['ТО_стоимость']
+    def __init__(self, name, installed_power_electric, heating_load, distance, load_factor_summer, load_factor_winter, voltage = 10):
+        super().__init__(name, installed_power_electric, distance, load_factor_summer, load_factor_winter, voltage)
+        self.heating_load = heating_load
 
-            return True
-        # Все аналогично для КР
-        elif gtu.hours_since_kr >= self.gtu_specs['КР_периодичность'] and gtu.status == "работает":
-            print(f"GTU {gtu.id} уходит на КР в {current_time}")
-            gtu.status = "КР"
-            kr_duration = datetime.timedelta(hours=7*24)  # 7 дней
-            gtu.end_maintenance = current_time + kr_duration
-            gtu.next_kr = current_time + kr_duration
-            gtu.downtime_hours += kr_duration.total_seconds() / 3600
-            gtu.kr_counter += 1
-            gtu.hours_since_kr = 0
-            gtu.maintenance_cost += self.gtu_specs['КР_стоимость']
-            self.total_maintenance_cost += self.gtu_specs['КР_стоимость']
-            return True
-        return False
+class LivingComplex(PowerConsumer):
 
-    def update_status(self, gtu, current_time):
-        # Проверка времени ТО и КР, возвращение в эксплуатацию
-        if gtu.status in ["ТО", "КР"] and current_time >= gtu.end_maintenance:
-            # print(f"GTU {gtu.id} возвращается в строй в {current_time}")
-            gtu.status = "работает"
-            gtu.next_to = None
-            gtu.next_kr = None
-            gtu.end_maintenance = None
+    def __init__(self, name, installed_power_electric, heating_load, distance, load_factor_summer, load_factor_winter, voltage = 10):
+        super().__init__(name, installed_power_electric, distance, load_factor_summer, load_factor_winter, voltage)
+        self.heating_load = heating_load
 
-            return True
-        return False
+class WellCluster(PowerConsumer):
 
-    def simulate(self, start_date, end_date):  # Собстна, сама симуляция
-        self.start_date = start_date
-        self.end_date = end_date
-        current_time = start_date
-        last_month = None
+    def __init__(self, name, installed_power_electric, distance, load_factor_summer, load_factor_winter, voltage = 10):
+        super().__init__(name, installed_power_electric, distance, load_factor_summer, load_factor_winter, voltage)
 
-        while current_time <= end_date:  # Расчет электроэнергии и времени работы
-            for gtu in self.gtus:
-                if gtu.status == "работает" or gtu.status == "горячий_резерв":
-                    hours_this_step = 1  # Шаг моделирования, 1 час по ТЗ
-                    # Для моточасов я учел как произведение времени в часах на коэф загрузки
-                    effective_hours = gtu.average_load_factor * hours_this_step
-                    gtu.total_run_hours += effective_hours  # Общее время работы
-                    gtu.run_hours += effective_hours  # Время с ТО
-                    gtu.hours_since_kr += effective_hours  # Время с КР
-                    if gtu.status == "работает":
-                        # Проверка статуса и вычисление выработанной энергии
-                        self.total_energy_generated += gtu.specs['мощность'] * \
-                            gtu.average_load_factor * hours_this_step
-                    elif gtu.status == "горячий_резерв":
-                        self.total_energy_generated += gtu.specs['мощность'] * \
-                            gtu.average_load_factor * hours_this_step
+class PowerLine:
 
-            # Проверка статуса ТО и КР, ввод резервов
-            need_maintenance = []  # Список ГТУ ТО и КР
-            for gtu in self.gtus:
-                if self.perform_maintenance(gtu, current_time):
-                    need_maintenance.append(gtu)
+    def __init__(self, source, destination, length, material="AC-120/19", voltage=10, r0 = 0.244, x0 = 0.414):
+        self.source = source #Откуда
+        self.destination = destination #Куда
+        self.length = length #км
+        self.material = material #Материал провода
+        self.voltage = voltage #кВ
+        self.personnel_count = 30
+        self.personnel_salary = 130000
+        self.power_loss = 0 #Вт
+        self.total_power_loss = 0 
+        self.r0 = r0 #Ом/км
+        self.x0 = x0 #Ом/км
+        self.voltage_drop = 0 #В
 
-            hot_reserve_used = False  # Ограничение для разового использования горячего резерва
-            for gtu in need_maintenance:
-                if not hot_reserve_used and self.hot_reserve and self.hot_reserve.status == "горячий_резерв":
-                    # print(f"  Замена GTU {gtu.id} на GTU {self.hot_reserve.id} (горячий резерв)")
-                    self.hot_reserve.status = "работает"
-                    hot_reserve_used = True  # На этом шаге больше нельзя использовать резерв после ввода ТО
-                    self.assign_hot_reserve()  # Поиск иных резервов
+    def calculate_power_loss(self, power_transmitted_hourly, power_factor = 0.97):
+        #Полное сопротивление линии (Ом)
+        r = self.r0 * self.length
+        x = self.x0 * self.length
+        z = math.sqrt(r**2 + x**2)
 
-                # Если горячий использован, вводим холодный
-                elif self.cold_reserve and self.cold_reserve.status == 'холодный_резерв':
-                    # print(f"  Замена GTU {gtu.id} на GTU {self.cold_reserve.id} (холодный резерв)")
-                    self.cold_reserve.status = "работает"
-                    self.assign_cold_reserve()
-                # else:
-                #     # Если все резервы кончились
-                #     print(f"  Нет доступных резервов для замены GTU {gtu.id}")
+        #Ток в линии (А)
+        i = (power_transmitted_hourly) / (math.sqrt(3) * self.voltage * 1000 * power_factor) 
 
-            # Обновление статусов ГТУ
-            for gtu in self.gtus:
-                self.update_status(gtu, current_time)
+        #Потери мощности (Вт)
+        self.power_loss = 3 * i**2 * r 
 
-            # Расход на зарплату, считает по первому числу месяца
-            if current_time.month != last_month:
-                self.total_salary_cost += self.personnel_salary
-                last_month = current_time.month
+        #Падение напряжения (В)
+        self.voltage_drop = (i * z)
 
-            current_time += datetime.timedelta(hours=1)
+        return self.power_loss
 
-        # Вывод итоговой информации по каждой ГТУ
-        print("\nИтоговая информация:")
+    def __repr__(self):
+        return f"Линия электропередачи ГТЭС -> {self.destination.name} (Длина: {self.length} км, Напряжение: {self.voltage} кВ, Потери мощности: {self.power_loss:.2f} Вт, Общие потери электроэнергии: {self.total_power_loss:.2f} кВт*ч, Падение напряжения: {self.voltage_drop:.2f} В)" #Изменил в Вт и убрал мощность
 
-        # for gtu in self.gtus:
-        #     print(f"  GTU {gtu.id}:")
-        #     print(f"   Выработка: {gtu.specs['мощность'] * gtu.average_load_factor * gtu.total_run_hours:.2f} МВт*ч")
-        #     print(f"   Общее время работы: {gtu.total_run_hours:.2f}")
-        #     print(f"   ТО: {gtu.to_counter}")
-        #     print(f"   КР: {gtu.kr_counter}")
-        #     print(f"   Простой: {gtu.downtime_hours:.2f} часов")
-        #     print(f"   Расходы на ТО и КР: {gtu.maintenance_cost:.2f} руб.")
+class PowerPlant:
 
-        # Итоговые расходы
-        print(
-            f"\nИтоговые расходы на зарплату: {self.total_salary_cost:.2f} руб.")
-        print(
-            f"Итоговые расходы на ТО и КР: {self.total_maintenance_cost:.2f} руб.")
-        print(
-            f"Суммарная выработка электроэнергии: {self.total_energy_generated:.2f} МВт*ч")
-        cost_electricity = self.total_energy_generated * self.prise_per_MW
-        print(
-            f"Суммарная стоймость электроэнергии: {cost_electricity:.2f} руб")
-        res = cost_electricity + self.total_maintenance_cost + self.total_salary_cost
-        print(f"{res:.2f}")
+    def __init__(self, name="ГТЭС"):
+        self.name = name
 
-# _________________________________________________________________________________________
-# добавил для связи между файлами. Оставил минимум, который мне необходим. При желании нужно изменить
+class PowerGridModel:
+    def __init__(self, consumers):
+        self.consumers = consumers
+        self.power_lines = [] #Список линий электропередач
+        self.total_power_loss_w = 0 #Суммарные потери мощности в Вт
+        self.total_power_loss_kwh = 0 #Потери кВт*ч
+        self.total_power_loss_mwh = 0 #Итоговые потери в МВт*ч
+        self.personnel_salary = 130000 * 30 
 
+    def create_power_lines(self):
+        powerplant = PowerPlant() 
 
-class GridModel:
-    # Установка коэффициента загрузки
-    def __init__(self):
-        self.load_factors = [0.6, 0.7, 0.5, 0.8, 0.05, 0.75, 0.8, 0.85, 0.0]
-        self.total_salary_cost = 0
+        for consumer in self.consumers:
+            line = PowerLine(powerplant, consumer, consumer.distance, voltage = consumer.voltage)
+            self.power_lines.append(line)
 
-    def set_load(self, new_load_factors):
-        self.load_factors = new_load_factors
+    def simulate(self, start_date, end_date):
 
-    def get_load(self):
-        return self.load_factors
+        total_hours = (end_date - start_date).total_seconds() / 3600
+        self.create_power_lines() #Создаем линии электропередач
+        current_date = start_date
+        last_month = None 
+        self.total_personnel_cost = 0 #Расход ЗП
 
-    # получение результирующей стоимости. Пока оставим так но нужно переписать
-    def set_salary_cost(self, cost):
-        self.total_salary_cost = cost
+        while current_date <= end_date:
 
-    def get_salary_cost(self):
-        return self.total_salary_cost
+            total_power_demand = 0
+            for consumer in self.consumers:
+                power_demand_kw = consumer.calculate_power_demand(current_date)  
+                consumer.total_power_consumption += power_demand_kw  / 1000 
 
+                total_power_demand += power_demand_kw 
 
-grid_model = GridModel()
-# _________________________________________________________________________________________
+            power_loss_sum = 0 
+            for line in self.power_lines:
+                power_transmitted_hourly = line.destination.calculate_power_demand(current_date)
+                power_loss = line.calculate_power_loss(power_transmitted_hourly) 
 
+                line_power_loss_kwh = power_loss * total_hours / 1000
+                line.total_power_loss = line_power_loss_kwh
 
-# Тут само моделирование с нашими данным
-gtu_specs = {
-    'мощность': 16,
-    'кол-во': 9,
-    'ТО_периодичность': 1500,
-    'ТО_стоимость': 15000000,
-    'КР_периодичность': 10000,
-    'КР_стоимость': 75000000,
-    'время_запуска_из_холодного_резерва': 2
-}
+                power_loss_sum += power_loss
 
-# Тут моделирование с резервами, ГТУ 4 горячий, ГТУ 8 холодный
-load_factors = grid_model.get_load()
+     
+            if current_date.month != last_month:
+                self.total_personnel_cost += self.personnel_salary 
+                last_month = current_date.month
 
-model = GTESModel(gtu_specs, load_factors)
+            current_date += datetime.timedelta(hours=1) 
+
+        self.total_power_loss_w = power_loss_sum
+        self.total_power_loss_kwh = power_loss_sum * total_hours / 1000
+        self.total_power_loss_mwh = self.total_power_loss_kwh / 1000
+
+        print("---Результаты моделирования---")
+        print(f"Суммарные потери мощности: {self.total_power_loss_w:.2f} Вт")
+        print(f"Общие потери электроэнергии за весь период: {self.total_power_loss_mwh:.2f} МВт*ч") #Потери за весь период
+        print(f"Общая сумма расходов на ЗП персонала: {self.total_personnel_cost:.2f} руб.")
+
+        print("\n---Состояние объектов---")
+        for consumer in self.consumers:
+            print(consumer)
+
+        print("\n---Состояние линий электропередач---")
+        for line in self.power_lines:
+            print(line)
+
+objects_data = [
+    {"name": "УКПГ", "installed_power_electric": 30.0, "heating_load": 3.04, "distance": 0.50, "load_factor_summer": 90, "load_factor_winter": 95, "type": ProductionFacility, "voltage": 10},
+    {"name": "ОБП", "installed_power_electric": 9.0, "heating_load": 0.64, "distance": 3.0, "load_factor_summer": 80, "load_factor_winter": 90, "type": ProductionFacility, "voltage": 10},
+    {"name": "ВЖК", "installed_power_electric": 2.0, "heating_load": 0.35, "distance": 3.50, "load_factor_summer": 100, "load_factor_winter": 100, "type": LivingComplex, "voltage": 10},
+    {"name": "ПЖК", "installed_power_electric": 3.0, "heating_load": 2.58, "distance": 4.0, "load_factor_summer": 100, "load_factor_winter": 100, "type": LivingComplex, "voltage": 10},
+    {"name": "ПСП", "installed_power_electric": 10.0, "heating_load": 1.91, "distance": 100.0, "load_factor_summer": 100, "load_factor_winter": 100, "type": ProductionFacility, "voltage": 10},
+]
+
+well_clusters_data = [
+    {"name": "Куст 1", "installed_power_electric": 0.7, "distance": 1.0, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster, "voltage": 10},
+    {"name": "Куст 2", "installed_power_electric": 0.8, "distance": 2.0, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster},
+    {"name": "Куст 3", "installed_power_electric": 0.5, "distance": 3.0, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster},
+    {"name": "Куст 4", "installed_power_electric": 0.9, "distance": 3.3, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster},
+    {"name": "Куст 5", "installed_power_electric": 1.0, "distance": 4.0, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster},
+    {"name": "Куст 6", "installed_power_electric": 0.9, "distance": 4.5, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster},
+    {"name": "Куст 7", "installed_power_electric": 0.5, "distance": 5.0, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster},
+    {"name": "Куст 8", "installed_power_electric": 1.0, "distance": 5.2, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster},
+    {"name": "Куст 9", "installed_power_electric": 1.3, "distance": 5.7, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster},
+    {"name": "Куст 10", "installed_power_electric": 1.0, "distance": 6.0, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster},
+    {"name": "Куст 11", "installed_power_electric": 0.8, "distance": 6.5, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster},
+    {"name": "Куст 12", "installed_power_electric": 0.6, "distance": 7.0, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster},
+    {"name": "Куст 13", "installed_power_electric": 0.8, "distance": 7.5, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster},
+    {"name": "Куст 14", "installed_power_electric": 1.0, "distance": 7.8, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster},
+    {"name": "Куст 15", "installed_power_electric": 1.0, "distance": 8.0, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster},
+    {"name": "Куст 16", "installed_power_electric": 0.7, "distance": 8.5, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster},
+    {"name": "Куст 17", "installed_power_electric": 1.0, "distance": 9.0, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster},
+    {"name": "Куст 18", "installed_power_electric": 0.8, "distance": 9.3, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster},
+    {"name": "Куст 19", "installed_power_electric": 1.0, "distance": 9.7, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster},
+    {"name": "Куст 20", "installed_power_electric": 1.1, "distance": 17.0, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster},
+    {"name": "Куст 21", "installed_power_electric": 1.0, "distance": 18.0, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster},
+    {"name": "Куст 22", "installed_power_electric": 2.2, "distance": 20.0, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster},
+ {"name": "Куст 23", "installed_power_electric": 1.4, "distance": 22.0, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster},
+ {"name": "Куст 24", "installed_power_electric": 1.2, "distance": 23.0, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster},
+ {"name": "Куст 25", "installed_power_electric": 1.3, "distance": 24.0, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster},
+ {"name": "Куст 26", "installed_power_electric": 1.5, "distance": 25.0, "load_factor_summer": 50, "load_factor_winter": 100, "type": WellCluster}
+]
+
+consumers = []
+
+for obj_data in objects_data:
+  object_type = obj_data.pop("type")
+  obj = object_type(**obj_data)
+  consumers.append(obj)
+
+for obj_data in well_clusters_data:
+  object_type = obj_data.pop("type")
+  obj = object_type(**obj_data)
+  consumers.append(obj)
+
+model = PowerGridModel(consumers=consumers)
 
 start_date = datetime.datetime(2024, 6, 1)
-end_date = datetime.datetime(2025, 6, 1)
+end_date = datetime.datetime(2024, 6, 2)
 model.simulate(start_date, end_date)
