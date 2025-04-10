@@ -4,7 +4,7 @@ import random
 
 from matplotlib import pyplot as plt
 
-from NetworkGridModel import model
+from PowerPlantModel import model
 
 
 # константы генетического алгоритма
@@ -49,7 +49,7 @@ def oneMaxFitness(individual):
 
 
 def individualCreator():
-    return Individual([round(random.random(), 2) for i in range(ONE_MAX_LENGTH)])
+    return Individual([round(random.uniform(0.5, 1), 2) for i in range(ONE_MAX_LENGTH)])
 
 
 def populationCreator(n=0):
@@ -96,7 +96,7 @@ def cxOnePoint(child1, child2):
 def mutFlipBit(mutant, indpb=0.01):
     for indx in range(len(mutant)):
         if random.random() < indpb:
-            mutant[indx] = round(random.random(), 2)
+            mutant[indx] = round(random.uniform(0.5, 1.1), 2)
 
 
 while generationCounter < MAX_GENERATIONS:
